@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drag & Drop File Upload to Google Drive</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+        .drop-zone { border: 2px dashed #ccc; border-radius: 10px; padding: 40px; text-align: center; cursor: pointer; transition: all 0.3s; }
+        .drop-zone.dragover { border-color: #007bff; background-color: #f8f9fa; }
+        .progress, .success, .error { margin-top: 20px; display: none; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Upload Files to Google Drive</h1>
+    
+    <div class="drop-zone" id="dropZone">
+        <p>Drag & drop files here or click to browse</p>
+        <input type="file" id="fileInput" style="display: none;">
+    </div>
+    
+    <div class="progress" id="progress">Uploading... <span id="progressText">0%</span></div>
+    <div class="success" id="success">File uploaded successfully!</div>
+    <div class="error" id="error"></div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const progress = document.getElementById('progress');
+        const progressText = document.getElementById('progressText');
+        const success = document.getElementById('success');
+        const error = document.getElementById('error');
+
+        // Event handlers
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(event => {
+            dropZone.addEventListener(event, preventDefaults);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        dropZone.addEventListener('dragover', () => dropZone.classList.add('dragover'));
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+        dropZone.addEventListener('drop', handleDrop);
+        dropZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', handleFileSelect);
+
+        function handleDrop(e) {
+            const files = e.dataTransfer.files;
+            if (files.length > 0) uploadFile(files[0]);
+        }
+
+        function handleFileSelect(e) {
+            if (e.target.files.length > 0) uploadFile(e.target.files[0]);
+        }
+
+        async function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            // Add metadata as separate fields
+            formData.append('fileName', file.name);
+            formData.append('mimeType', file.type);
+            formData.append('fileSize', file.size.toString());
+
+            showProgress();
+            
+            try {
+                const response = await fetch('https://sohlican.app.n8n.cloud/webhook/upload-to-drive', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                
+                const result = await response.json();
+                showSuccess(result);
+            } catch (err) {
+                showError(err.message);
+            }
+        }
+
+        function showProgress() {
+            progress.style.display = 'block';
+            success.style.display = 'none';
+            error.style.display = 'none';
+        }
+
+        function showSuccess(result) {
+            progress.style.display = 'none';
+            success.style.display = 'block';
+            error.style.display = 'none';
+        }
+
+        function showError(message) {
+            progress.style.display = 'none';
+            success.style.display = 'none';
+            error.style.display = 'block';
+            error.textContent = `Error: ${message}`;
+        }
+    </script>
+</body>
+</html>
